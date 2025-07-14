@@ -1,0 +1,110 @@
+class Solution {
+public:
+    const int LOG = 17;
+    int timer = 0, n;
+    vector<vector<pair<int, int>>> tree;
+    vector<vector<int>> up;
+    vector<int> tin, tout, depth;
+    vector<long long> dist;
+
+    void dfs(int v, int p) {
+        tin[v] = ++timer;
+        up[v][0] = p;
+        for (int i = 1; i < LOG; ++i)
+            up[v][i] = up[up[v][i-1]][i-1];
+        for (auto [u, w] : tree[v]) {
+            if (u == p) continue;
+            depth[u] = depth[v] + 1;
+            dist[u] = dist[v] + w;
+            dfs(u, v);
+        }
+        tout[v] = ++timer;
+    }
+
+    bool isAncestor(int u, int v) {
+        return tin[u] <= tin[v] && tout[u] >= tout[v];
+    }
+
+    int lca(int u, int v) {
+        if (isAncestor(u, v)) return u;
+        if (isAncestor(v, u)) return v;
+        for (int i = LOG - 1; i >= 0; --i)
+            if (!isAncestor(up[u][i], v))
+                u = up[u][i];
+        return up[u][0];
+    }
+
+    long long pathCost(int u, int v) {
+        int anc = lca(u, v);
+        return dist[u] + dist[v] - 2 * dist[anc];
+    }
+
+    void buildVirtualTree(const vector<int>& nodes, vector<vector<int>>& vt_adj, vector<int>& vt_nodes) {
+        vector<int> extended = nodes;
+        for (int i = 1; i < nodes.size(); ++i) {
+            extended.push_back(lca(nodes[i], nodes[i - 1]));
+        }
+        sort(extended.begin(), extended.end(), [&](int a, int b) {
+            return tin[a] < tin[b];
+        });
+        extended.erase(unique(extended.begin(), extended.end()), extended.end());
+
+        vt_nodes = extended;
+        vt_adj.assign(n, {});
+        vector<int> stk;
+
+        for (int u : extended) {
+            while (!stk.empty() && !isAncestor(stk.back(), u)) stk.pop_back();
+            if (!stk.empty()) {
+                vt_adj[stk.back()].push_back(u);
+            }
+            stk.push_back(u);
+        }
+    }
+
+    long long dfsVT(int u, vector<vector<int>>& vt_adj) {
+        long long total = 0;
+        for (int v : vt_adj[u]) {
+            total += pathCost(u, v);
+            total += dfsVT(v, vt_adj);
+        }
+        return total;
+    }
+
+    vector<long long> minimumTotalLatencies(int n, vector<vector<int>>& edges, vector<vector<int>>& queries) {
+        this->n = n;
+        tree.assign(n, {});
+        up.assign(n, vector<int>(LOG));
+        tin.assign(n, 0);
+        tout.assign(n, 0);
+        depth.assign(n, 0);
+        dist.assign(n, 0);
+        timer = 0;
+
+        // Build the original tree
+        for (auto& edge : edges) {
+            int u = edge[0], v = edge[1], w = edge[2];
+            tree[u].emplace_back(v, w);
+            tree[v].emplace_back(u, w);
+        }
+
+        dfs(0, 0);
+
+        vector<long long> result;
+
+        for (auto& nodes : queries) {
+            sort(nodes.begin(), nodes.end(), [&](int a, int b) {
+                return tin[a] < tin[b];
+            });
+
+            vector<vector<int>> vt_adj;
+            vector<int> vt_nodes;
+
+            buildVirtualTree(nodes, vt_adj, vt_nodes);
+            long long total = dfsVT(vt_nodes[0], vt_adj);
+            result.push_back(total);
+        }
+
+        return result;
+    }
+};
