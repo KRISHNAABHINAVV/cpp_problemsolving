@@ -1,0 +1,31 @@
+class Solution {
+public:
+    int countHillValley(vector<int>& nums) {
+        int count = 0;
+        int n = nums.size();
+
+        for (int i = 1; i < n - 1; ++i) {
+            // Skip if same as previous to avoid overcounting
+            if (nums[i] == nums[i - 1]) continue;
+
+            // Find previous different element
+            int left = i - 1;
+            while (left >= 0 && nums[left] == nums[i]) left--;
+
+            // Find next different element
+            int right = i + 1;
+            while (right < n && nums[right] == nums[i]) right++;
+
+            // Ensure valid neighbors
+            if (left >= 0 && right < n) {
+                if (nums[i] > nums[left] && nums[i] > nums[right]) {
+                    count++; // hill
+                } else if (nums[i] < nums[left] && nums[i] < nums[right]) {
+                    count++; // valley
+                }
+            }
+        }
+
+        return count;
+    }
+};
